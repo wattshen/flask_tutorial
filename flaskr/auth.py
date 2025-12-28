@@ -1,6 +1,8 @@
 import functools
+from urllib.parse import urlparse
 
 from flask import Blueprint
+from flask import current_app
 from flask import flash
 from flask import g
 from flask import redirect
@@ -22,7 +24,8 @@ def login_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
         if g.user is None:
-            return redirect(url_for("auth.login"))
+            # 关键逻辑：跳转到 login 时，把当前页面的 endpoint 作为 next 参数带过去
+            return redirect(url_for("auth.login",next=request.endpoint))
 
         return view(**kwargs)
 
@@ -34,6 +37,13 @@ def load_logged_in_user():
     """If a user id is stored in the session, load the user object from
     the database into ``g.user``."""
     user_id = session.get("user_id")
+    #获取当前函数名
+
+    #func_name = inspect.currentframe().f_code.co_name
+
+    current_app.logger.info(f"触发钩子：{__name__} (user_id:{user_id})")
+
+
 
     if user_id is None:
         g.user = None
@@ -102,7 +112,12 @@ def login():
             # store the user id in a new session and return to the index
             session.clear()
             session["user_id"] = user["id"]
-            return redirect(url_for("index"))
+
+            next_page = request.args.get('next')
+            if not next_page or urlparse(next_page).netloc !='' or next_page == url_for('auth.index'):
+                next_page = 'index'
+
+            return redirect(next_page)
 
         flash(error)
 

@@ -31,6 +31,7 @@ include = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 filterwarnings = ["error"]
+#cache_dir = ".pytest_cache_new"为应对缓存问题而添加，后直接删除文件解决掉了2025年12月28日
 
 [tool.coverage.run]
 branch = true

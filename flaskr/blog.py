@@ -98,7 +98,7 @@ def update(id):
             error = "Title is required."
 
         if error is not None:
-            flash(error)
+            flash(error)#在页面展示错误消息
         else:
             db = get_db()
             db.execute(
