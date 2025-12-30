@@ -37,7 +37,19 @@ def create_app(test_config=None):
     def hello():
         print(f"This page's endpoint(*2) is {request.endpoint * 2 if request.endpoint else "no endpoint"}")  # → 输出: 'hello'
         return f"this is my first flask app. good start!!!! endpoint is {request.endpoint}"
+    # ... 在 create_app 函数内部 ...
+    
+    @app.template_filter('local_time')
+    def local_time_filter(dt):
+        """将 UTC 时间转换为 UTC+8 (北京时间)"""
+        import datetime
+        if dt is None:
+            return ""
+        # 加上 8 小时
+        local_dt = dt + datetime.timedelta(hours=8)
+        return local_dt.strftime('%Y-%m-%d %H:%M:%S')
 
+        
     # register the database commands
     from . import db
 

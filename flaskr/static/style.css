@@ -98,6 +98,8 @@ nav ul li a, nav ul li span, header .action {
 
 .post .body {
   white-space: pre-line;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .content:last-child {

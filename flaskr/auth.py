@@ -112,11 +112,12 @@ def login():
             # store the user id in a new session and return to the index
             session.clear()
             session["user_id"] = user["id"]
-
+            
+            #实现从哪来到哪去
             next_page = request.args.get('next')
-            if not next_page or urlparse(next_page).netloc !='' or next_page == url_for('auth.index'):
-                next_page = 'index'
-
+            if not next_page or urlparse(next_page).netloc !='':
+                #urlparse(next_page).netloc !=''即外站域名
+                next_page = url_for('index')
             return redirect(next_page)
 
         flash(error)
