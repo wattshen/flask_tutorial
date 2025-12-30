@@ -68,6 +68,8 @@ def register():
 
         if not username:
             error = "Username is required."
+        elif len(username)<3:
+            error = "用户名须3-10位"
         elif not password:
             error = "Password is required."
 
