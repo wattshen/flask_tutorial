@@ -5,12 +5,23 @@
 {% endblock %}
 
 {% block content %}
-  <form method="post">
+  <form method="post" enctype="multipart/form-data">
     <label for="title">Title</label>
     <input name="title" id="title" value="{{ request.form['title'] or post['title'] }}" required>
+    
     <label for="tags">Tags (comma separated)</label>
     <input name="tags" id="tags" value="{{ request.form['tags'] or tags }}" placeholder="e.g. python, flask, tutorial">
-    <label for="body">Body</label>
+    
+    <label for="image">Image</label>
+    {% if post['image_path'] %}
+      <div style="margin-bottom: 10px;">
+        <img src="{{ url_for('static', filename=post['image_path']) }}" alt="Current Image" style="max-width: 200px; max-height: 200px;">
+        <p style="font-size: 0.8em; color: #666;">Current image. Upload new one to replace.</p>
+      </div>
+    {% endif %}
+    <input type="file" name="image" id="image" accept="image/*">
+
+    <label for="body">Body (Markdown supported)</label>
     <textarea name="body" id="body">{{ request.form['body'] or post['body'] }}</textarea>
     <input type="submit" value="Save">
   </form>

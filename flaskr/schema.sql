@@ -21,6 +21,7 @@ CREATE TABLE post (
   created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   title TEXT NOT NULL,
   body TEXT NOT NULL,
+  image_path TEXT,
   FOREIGN KEY (author_id) REFERENCES user (id)
 );
 

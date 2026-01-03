@@ -5,12 +5,46 @@ from flask import redirect
 from flask import render_template
 from flask import request
 from flask import url_for
+from flask import current_app
 from werkzeug.exceptions import abort
+from werkzeug.utils import secure_filename
+import markdown
+import os
 
 from .auth import login_required
 from .db import get_db
 
 bp = Blueprint("blog", __name__)
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+# === 注册 markdown 过滤器 ===
+@bp.app_template_filter('markdown')
+def markdown_filter(text):
+    if text is None:
+        return ""
+    return markdown.markdown(
+        text,
+        extensions=[
+            'pymdownx.highlight',      # ✅ 核心高亮扩展
+            'pymdownx.superfences',     # ✅ 支持 ``` 代码块并触发高亮
+            'extra',
+            'nl2br'
+        ],
+        extension_configs={
+            'pymdownx.highlight': {
+                'css_class': 'highlight',  # CSS 类名
+                'use_pygments': True,      # 启用 Pygments
+                'linenums': False          # 不显示行号
+            }
+        }
+    )
+
 
 
 @bp.route("/")
@@ -59,7 +93,7 @@ def index():
     offset = (page - 1) * per_page#巧妙算法
     
     query_base = '''
-        SELECT p.id, p.title, p.body, p.created, p.author_id, u.username,
+        SELECT p.id, p.title, p.body, p.created, p.author_id, p.image_path, u.username,
          GROUP_CONCAT(t.name) as tags
          FROM post p
          JOIN user u ON p.author_id = u.id
@@ -122,7 +156,7 @@ def get_post(id, check_author=True):
     post = (
         get_db()
         .execute(
-            "SELECT p.id, title, body, created, author_id, username, GROUP_CONCAT(t.name) as tags"
+            "SELECT p.id, title, body, created, author_id, username, image_path, GROUP_CONCAT(t.name) as tags"
             " FROM post p JOIN user u ON p.author_id = u.id"
             " LEFT JOIN post_tag pt ON p.id = pt.post_id"
             " LEFT JOIN tag t ON pt.tag_id = t.id"
@@ -208,6 +242,21 @@ def unlike(id):
     db.commit()
     return redirect(url_for('blog.detail', id=id))
 
+@bp.route("/feed")
+def feed():
+    db = get_db()
+    posts = db.execute(
+        "SELECT p.id, p.title, p.body, p.created, p.author_id, u.username"
+        " FROM post p JOIN user u ON p.author_id = u.id"
+        " ORDER By created DESC LIMIT 10"
+    ).fetchall()
+    xml = render_template('blog/feed.xml', posts=posts)
+    response = current_app.make_response(xml)
+    response.headers['Content-Type'] = 'application/xml'
+    return response
+
+
+
 @bp.route("/<int:id>/comment", methods = ("POST",))
 @login_required
 def comment(id):
@@ -254,18 +303,32 @@ def create():
         title = request.form["title"]
         body = request.form["body"]
         tags = request.form.get("tags") #获取标签输入
+        image = request.files.get('image')
+        image_path = None
         error = None
 
         if not title:
             error = "Title is required."
+        
+        if image and image.filename and allowed_file(image.filename):
+            if current_app.static_folder is None:
+                error = "System Error: Static folder not configured."
+            else:
+                filename = secure_filename(image.filename)
+                #确保存储目录存在
+                upload_folder = os.path.join(current_app.static_folder, 'uploads')
+                os.makedirs(upload_folder, exist_ok=True)
+
+                image.save(os.path.join(upload_folder, filename))
+                image_path = f"uploads/{filename}"
 
         if error is not None:
             flash(error)
         else:
             db = get_db()
             cursor = db.execute(
-                "INSERT INTO post (title, body, author_id) VALUES (?, ?, ?)",
-                (title, body, g.user["id"]),
+                "INSERT INTO post (title, body, author_id, image_path) VALUES (?, ?, ?, ?)",
+                (title, body, g.user["id"], image_path),
             )
             post_id = cursor.lastrowid#由游标方法获取id
             save_tags(db, post_id, tags)
@@ -285,18 +348,33 @@ def update(id):
         title = request.form["title"]
         body = request.form["body"]
         tags = request.form.get("tags")
+        image = request.files.get("image")
         error = None
 
         if not title:
             error = "Title is required."
-
+        
         if error is not None:
             flash(error)#在页面展示错误消息
         else:
             db = get_db()
-            db.execute(
-                "UPDATE post SET title = ?, body = ? WHERE id = ?", (title, body, id)
-            )
+            if image and image.filename and allowed_file(image.filename):
+                if current_app.static_folder is None:
+                    Error = "System Error: Static folder not configured."
+                else:
+                    filename = secure_filename(image.filename)
+                    upload_folder = os.path.join(current_app.static_folder, 'uploads')
+                    os.makedirs(upload_folder, exist_ok=True)
+                    image.save(os.path.join(upload_folder, filename))
+                    image_path = f"uploads/{filename}"
+                    db.execute(
+                        "UPDATE post SET title = ?, body = ?, image_path = ? WHERE id = ?",
+                        (title, body, image_path, id)
+                    )
+            else:
+                db.execute(
+                    "UPDATE post SET title = ?, body = ? WHERE id = ?", (title, body, id)
+                )
             db.execute("DELETE FROM post_tag WHERE post_id = ?", (id,))
             save_tags(db, id, tags)
             db.commit()

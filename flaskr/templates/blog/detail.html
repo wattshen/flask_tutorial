@@ -24,7 +24,16 @@
             <a class="action" href=" {{ url_for('blog.update', id=post['id'])}}">Edit</a>
         {% endif %}
     </header>
-    <p class="body">{{post['body']}}</p>
+    
+    {% if post['image_path'] %}
+      <div class="post-image" style="margin: 1rem 0;">
+        <img src="{{ url_for('static', filename=post['image_path']) }}" alt="Post Image" style="max-width: 100%; border-radius: 5px;">
+      </div>
+    {% endif %}
+
+    <div class="body">
+      {{ post['body'] | markdown | safe }}
+    </div>
 
     <div class="interactions" style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem;">
         <div class="likes">
